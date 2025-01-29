@@ -20,6 +20,7 @@ string finnhubToken = configuration["FinnhubToken"];
 
 ArgumentNullException.ThrowIfNullOrWhiteSpace(finnhubToken);
 
+
 // Setup dependency injection
 var serviceCollection = new ServiceCollection();
 ConfigureServices(serviceCollection);
