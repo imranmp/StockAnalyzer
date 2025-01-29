@@ -29,7 +29,7 @@ var serviceProvider = serviceCollection.BuildServiceProvider();
 var httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
 
 // Your list of tickers
-List<(string ticker, string companyName)> tickers = GetTickers();
+List<(string ticker, string companyName)> tickers = await GetTickers();
 if (tickers.Count == 0)
 {
     Console.WriteLine("No tickers found in Tickers.txt");
@@ -47,7 +47,7 @@ JsonSerializerOptions options = new()
 
 if (File.Exists("AnalysisResult.json"))
 {
-    string json = File.ReadAllText("AnalysisResult.json");
+    string json = await File.ReadAllTextAsync("AnalysisResult.json");
     if (json.Length != 0)
     {
         analysis = JsonSerializer.Deserialize<List<Analysis>>(json, options)!;
@@ -76,18 +76,18 @@ foreach ((string ticker, string companyName) in tickers)
     if (response.IsSuccessStatusCode)
     {
         string responseBody = await response.Content.ReadAsStringAsync();
-        Analysis[]? analyses = JsonSerializer.Deserialize<Analysis[]>(responseBody, options);
+        Analysis[]? analysisResults = JsonSerializer.Deserialize<Analysis[]>(responseBody, options);
 
-        foreach (Analysis a in analyses!)
+        foreach (Analysis analysisEntry in analysisResults!)
         {
-            if (analysis.Any(c => c.Symbol == a.Symbol && c.Period == a.Period))
+            var existingAnalysis = analysis.FirstOrDefault(c => c.Symbol == analysisEntry.Symbol && c.Period == analysisEntry.Period); 
+            if (existingAnalysis != null)
             {
-                Analysis existingAnalysis = analysis.First(c => c.Symbol == a.Symbol && c.Period == a.Period);
-                existingAnalysis = a;
+                existingAnalysis = analysisEntry;
             }
             else
             {
-                analysis.Add(a);
+                analysis.Add(analysisEntry);
             }
         }
     }
@@ -118,9 +118,9 @@ static void ConfigureServices(IServiceCollection services)
     services.AddHttpClient();
 }
 
-static List<(string ticker, string companyName)> GetTickers()
+static async Task<List<(string ticker, string companyName)>> GetTickers()
 {
-    string[] lines = File.ReadAllLines("../../../Tickers.txt");
+    string[] lines = await File.ReadAllLinesAsync("../../../Tickers.txt");
     List<(string ticker, string companyName)> tickers = [];
     foreach (string line in lines)
     {
