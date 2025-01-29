@@ -1,0 +1,101 @@
+AAPL	Apple
+ABBV	AbbVie Inc.
+ADBE	Adobe Inc.
+AMD	Advanced Micro Devices Inc.
+AMT	American Tower Corporation (REIT)
+AMZN	Amazon
+BABA	Alibaba
+BAC	Bank of America
+BIDU	Baidu Inc.
+BSX	Boston Scientific Corporation
+CCI	Crown Castle Inc.
+CI	The Cigna Group
+COST	Costco Wholesale Corporation
+CRSP	CRISPR Therapeutics AG
+CVS	CVS Health Corporation
+DG	Dollar General Corporation
+DOCU	DocuSign Inc.
+DVA	DaVita Inc.
+ELV	Elevance Health Inc.
+ENSG	The Ensign Group Inc.
+EQIX	Equinix Inc.
+EQR	Equity Residential of Beneficial Interest
+ESS	Essex Property Trust Inc.
+EXAS	Exact Sciences Corporation
+GH	Guardant Health Inc.
+GLD	SPDR Gold Trust
+GOOGL	Alphabet
+HCA	HCA Healthcare Inc.
+HLAL	Wahed FTSE USA Shariah ETF
+HR	Healthcare Realty Trust Incorporated
+IBM	International Business Machines Corporation
+IDXX	IDEXX Laboratories Inc.
+ISRG	Intuitive Surgical Inc.
+MA	Mastercard Incorporated
+MELI	MercadoLibre Inc.
+META	Meta Platforms Inc.
+MMM	3M Company
+MSFT	Microsoft
+NVDA	NVIDIA
+O	Realty Income Corporation
+PLD	Prologis Inc.
+PSA	Public Storage
+PYPL	PayPal Holdings Inc.
+QCOM	QUALCOMM Incorporated
+ROKU	Roku Inc.
+SFIX	Stitch Fix Inc.
+SHOP	Shopify Inc. Class A Subordinate
+SPG	Simon Property Group Inc.
+SPUS	SP Funds S&P 500 Sharia Industry Exclusions ETF
+SUI	Sun Communities Inc.
+TAK	Takeda Pharmaceutical Company
+TEAM	Atlassian Corporation
+TGT	Target Corporation
+TMUS	T-Mobile US Inc.
+TSLA	Tesla Inc.
+TTD	The Trade Desk Inc.
+UNH	UnitedHealth Group Incorporated (DE)
+UPST	Upstart Holdings Inc.
+V	Visa
+VHT	Vanguard Health Care ETF
+VZ	Verizon Communications Inc.
+W	Wayfair Inc. Class A
+WBA	Walgreens Boots Alliance Inc.
+WELL	Welltower Inc.
+WMT	Walmart Inc.
+SPUS	SP Funds S&P 500 Sharia Industry Exclusions ETF
+META	Meta Platforms Inc.
+NVDA	NVIDIA
+HLAL	Wahed FTSE USA Shariah ETF
+SHOP	Shopify Inc. Class A Subordinate
+AMZN	Amazon
+GOOGL	Alphabet
+AAPL	Apple
+MA	Mastercard Incorporated
+CRWD	CrowdStrike Holdings Inc.
+SPOT	Spotify Technology S.A.
+APPN	Appian Corporation
+NOW	ServiceNow Inc.
+MSFT	Microsoft
+TTD	The Trade Desk Inc.
+JD	JD.com Inc.
+OKTA	Okta Inc.
+ASML	ASML Holding N.V.
+PYPL	PayPal Holdings Inc.
+INTU	Intuit Inc.
+GMED	Globus Medical Inc. Class A
+GLD	SPDR Gold Trust
+DOCU	DocuSign Inc.
+CFLT	Confluent Inc.
+V	Visa
+ADSK	Autodesk Inc.
+ZM	Zoom Communications Inc.
+HUBS	HubSpot Inc.
+DXCM	DexCom Inc.
+BABA	Alibaba
+ZBRA	Zebra Technologies Corporation
+IDXX	IDEXX Laboratories Inc.
+PINS	Pinterest Inc. Class A
+DOCN	DigitalOcean Holdings Inc.
+FVRR	Fiverr International Ltd. no par value
+BAND	Bandwidth Inc.
