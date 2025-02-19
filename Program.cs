@@ -16,10 +16,9 @@ var builder = new ConfigurationBuilder()
 var configuration = builder.Build();
 
 // Get your Finnhub API token from user secrets
-string finnhubToken = configuration["FinnhubToken"];
+string? finnhubToken = configuration["FinnhubToken"];
 
-ArgumentNullException.ThrowIfNullOrWhiteSpace(finnhubToken);
-
+ArgumentException.ThrowIfNullOrWhiteSpace(finnhubToken);
 
 // Setup dependency injection
 var serviceCollection = new ServiceCollection();
