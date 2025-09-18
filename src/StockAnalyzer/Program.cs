@@ -9,9 +9,10 @@ using StockAnalyzer.Models;
 using System.Globalization;
 using System.Text.Json;
 
-// Setup configuration to read from user secrets
+// Setup configuration to read from user secrets and environment variables
 var builder = new ConfigurationBuilder()
-    .AddUserSecrets<Program>();
+    .AddUserSecrets<Program>()
+    .AddEnvironmentVariables();
 
 var configuration = builder.Build();
 
@@ -120,7 +121,7 @@ static void ConfigureServices(IServiceCollection services)
 
 static async Task<List<(string ticker, string companyName)>> GetTickers()
 {
-    string[] lines = await File.ReadAllLinesAsync("../../../Tickers.txt");
+    string[] lines = await File.ReadAllLinesAsync("Tickers.txt");
     List<(string ticker, string companyName)> tickers = [];
     foreach (string line in lines)
     {
