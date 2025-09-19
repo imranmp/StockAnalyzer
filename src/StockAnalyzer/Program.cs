@@ -1,132 +1,89 @@
-﻿using CsvHelper;
-using CsvHelper.Configuration;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Polly;
-using Polly.Extensions.Http;
-using StockAnalyzer.Converters;
-using StockAnalyzer.Models;
-using System.Globalization;
-using System.Text.Json;
+using Microsoft.Extensions.Http.Resilience;
+using Microsoft.Extensions.Logging;
+using StockAnalyzer.Services;
+using StockAnalyzer.Services.Interfaces;
+using System.Net;
 
-// Setup configuration to read from user secrets and environment variables
+// Setup configuration to read from appsettings, user secrets and environment variables
+var environment = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ?? "Production";
 var builder = new ConfigurationBuilder()
-    .AddUserSecrets<Program>()
-    .AddEnvironmentVariables();
+    .SetBasePath(Directory.GetCurrentDirectory())
+    .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+    .AddJsonFile($"appsettings.{environment}.json", optional: true, reloadOnChange: true)
+    .AddEnvironmentVariables()
+    .AddUserSecrets<Program>(optional: true);
 
 var configuration = builder.Build();
 
-// Get your Finnhub API token from user secrets
-string? finnhubToken = configuration["FinnhubToken"];
-
-ArgumentException.ThrowIfNullOrWhiteSpace(finnhubToken);
-
 // Setup dependency injection
-var serviceCollection = new ServiceCollection();
-ConfigureServices(serviceCollection);
-var serviceProvider = serviceCollection.BuildServiceProvider();
+var services = new ServiceCollection();
+services.AddSingleton<IConfiguration>(configuration);
 
-// Get the HttpClientFactory
-var httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
+// Logging (important for container stdout/stderr)
+services.AddLogging(logging => logging.AddConsole());
 
-// Your list of tickers
-List<(string ticker, string companyName)> tickers = await GetTickers();
-if (tickers.Count == 0)
+// Named HttpClient that uses the above pipeline
+services.AddHttpClient("Finnhub", client =>
 {
-    Console.WriteLine("No tickers found in Tickers.txt");
-    return;
-}
-
-List<Analysis> analysis = [];
-
-JsonSerializerOptions options = new()
-{
-    Converters = { new DecimalConverter(), new DoubleConverter() },
-    WriteIndented = true,
-    PropertyNameCaseInsensitive = true
-};
-
-if (File.Exists("AnalysisResult.json"))
-{
-    string json = await File.ReadAllTextAsync("AnalysisResult.json");
-    if (json.Length != 0)
+    client.BaseAddress = new Uri("https://finnhub.io/");
+    client.Timeout = TimeSpan.FromSeconds(30);
+}).AddStandardResilienceHandler()
+    .Configure((HttpStandardResilienceOptions options, IServiceProvider services) =>
     {
-        analysis = JsonSerializer.Deserialize<List<Analysis>>(json, options)!;
-    }
-}
+        // 1) total retry attempts (in addition to the original call)
+        options.Retry.MaxRetryAttempts = 5;
 
-foreach ((string ticker, string companyName) in tickers)
-{
-    string url = $"https://finnhub.io/api/v1/stock/recommendation?symbol={ticker}";
-    var client = httpClientFactory.CreateClient();
-    client.DefaultRequestHeaders.Add("X-Finnhub-Token", finnhubToken);
+        // 2) custom delay: 5 seconds * attempt number (attemptNumber is zero-based,
+        //    but the first retry attempt will have AttemptNumber == 1)
+        options.Retry.DelayGenerator = args =>
+            ValueTask.FromResult<TimeSpan?>(TimeSpan.FromSeconds(5 * Math.Max(1, args.AttemptNumber)));
 
-    var retryPolicy = HttpPolicyExtensions
-        .HandleTransientHttpError()
-        .OrResult(msg => msg.StatusCode == (System.Net.HttpStatusCode)429)
-        .WaitAndRetryAsync(5, retryAttempt =>
+        // 3) only handle 429 and 5xx status codes (and non-cancellation exceptions)
+        options.Retry.ShouldHandle = args =>
         {
-            Console.WriteLine($"Retrying... Attempt {retryAttempt}");
-            return TimeSpan.FromSeconds(5 * retryAttempt);
-        });
+            var outcome = args.Outcome;
 
-    HttpResponseMessage response = await retryPolicy.ExecuteAsync(() => client.GetAsync(url));
+            if (outcome.Result is HttpResponseMessage resp)
+            {
+                var code = resp.StatusCode;
+                return ValueTask.FromResult(code == HttpStatusCode.TooManyRequests || (int)code >= 500);
+            }
 
-    Console.Write($"{ticker} ");
+            if (outcome.Exception is not null)
+            {
+                // retry for exceptions except cancellation
+                return ValueTask.FromResult(!(outcome.Exception is OperationCanceledException));
+            }
 
-    if (response.IsSuccessStatusCode)
-    {
-        string responseBody = await response.Content.ReadAsStringAsync();
-        Analysis[]? analysisResults = JsonSerializer.Deserialize<Analysis[]>(responseBody, options);
+            return ValueTask.FromResult(false);
+        };
 
-        foreach (Analysis analysisEntry in analysisResults!)
+        // 4) get an ILogger from the IServiceProvider and log on retry
+        var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("HttpRetry");
+        options.Retry.OnRetry = args =>
         {
-            var existingAnalysis = analysis.FirstOrDefault(c => c.Symbol == analysisEntry.Symbol && c.Period == analysisEntry.Period); 
-            if (existingAnalysis != null)
-            {
-                existingAnalysis = analysisEntry;
-            }
-            else
-            {
-                analysis.Add(analysisEntry);
-            }
-        }
-    }
-    else
-    {
-        Console.WriteLine("Error");
-        Console.WriteLine(await response.Content.ReadAsStringAsync());
-    }
-}
+            // AttemptNumber is zero-based (first retry is 1)
+            logger.LogWarning(
+                "Retry # {RetryCount} for request {RequestUri} due to {Reason}",
+                args.AttemptNumber,
+                args.Outcome.Result?.RequestMessage?.RequestUri,
+                args.Outcome.Result?.StatusCode.ToString() ?? args.Outcome.Exception?.GetType().Name
+            );
 
-string analysesResultJson = JsonSerializer.Serialize(analysis, options);
-File.WriteAllText("AnalysisResult.json", analysesResultJson);
+            return ValueTask.CompletedTask;
+        };
+    });
 
-var config = new CsvConfiguration(CultureInfo.InvariantCulture)
-{
-    HasHeaderRecord = true,
-};
 
-using var writer = new StreamWriter("AnalysisResult.csv");
-using var csv = new CsvWriter(writer, config);
-csv.WriteRecords(analysis);
+// Register application services
+services.AddSingleton<ITickerProvider, TickerProvider>();
+services.AddSingleton<IAnalysisFetcher, AnalysisFetcher>();
+services.AddSingleton<IFileStorage, FileStorage>();
+services.AddTransient<App>();
 
-Console.WriteLine();
-Console.WriteLine("Analysis completed successfully!");
+var serviceProvider = services.BuildServiceProvider();
 
-static void ConfigureServices(IServiceCollection services)
-{
-    services.AddHttpClient();
-}
-
-static async Task<List<(string ticker, string companyName)>> GetTickers()
-{
-    string[] lines = await File.ReadAllLinesAsync("Tickers.txt");
-    List<(string ticker, string companyName)> tickers = [];
-    foreach (string line in lines)
-    {
-        string[] parts = line.Split('\t');
-        tickers.Add((parts[0], parts[1]));
-    }
-    return [.. tickers.DistinctBy(x => x.ticker).OrderBy(x => x.ticker)];
-}
+var app = serviceProvider.GetRequiredService<App>();
+await app.RunAsync();
