@@ -4,7 +4,6 @@ using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Logging;
 using StockAnalyzer.Services;
 using StockAnalyzer.Services.Interfaces;
-using System.Net;
 
 // Setup configuration to read from appsettings, user secrets and environment variables
 var environment = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ?? "Production";
@@ -21,46 +20,48 @@ var configuration = builder.Build();
 var services = new ServiceCollection();
 services.AddSingleton<IConfiguration>(configuration);
 
-// Logging (important for container stdout/stderr)
-services.AddLogging(logging => logging.AddConsole());
+// Configure logging to read configuration and add console provider
+services.AddLogging(logging =>
+{
+    logging.AddConfiguration(configuration.GetSection("Logging"));
+    logging.AddConsole();
+});
+
+var logger = services.BuildServiceProvider().GetRequiredService<ILoggerFactory>().CreateLogger<Program>();
 
 // Named HttpClient that uses the above pipeline
+string? finnhubToken = configuration["FinnhubToken"];
+if (string.IsNullOrWhiteSpace(finnhubToken))
+{
+    logger.LogError("FinnhubToken is not configured. Set the FinnhubToken in appsettings.");
+    return;
+}
+
 services.AddHttpClient("Finnhub", client =>
 {
     client.BaseAddress = new Uri("https://finnhub.io/");
-    client.Timeout = TimeSpan.FromSeconds(30);
+
+    client.DefaultRequestHeaders.Remove("X-Finnhub-Token");
+    client.DefaultRequestHeaders.Add("X-Finnhub-Token", finnhubToken);
+
+    //client.Timeout = TimeSpan.FromSeconds(30);
+
 }).AddStandardResilienceHandler()
     .Configure((HttpStandardResilienceOptions options, IServiceProvider services) =>
     {
-        // 1) total retry attempts (in addition to the original call)
-        options.Retry.MaxRetryAttempts = 5;
+        //options.TotalRequestTimeout = new HttpTimeoutStrategyOptions
+        //{
+        //    Timeout = TimeSpan.FromSeconds(30)
+        //};
 
-        // 2) custom delay: 5 seconds * attempt number (attemptNumber is zero-based,
-        //    but the first retry attempt will have AttemptNumber == 1)
-        options.Retry.DelayGenerator = args =>
-            ValueTask.FromResult<TimeSpan?>(TimeSpan.FromSeconds(5 * Math.Max(1, args.AttemptNumber)));
+        //options.AttemptTimeout = new HttpTimeoutStrategyOptions
+        //{
+        //    Timeout = TimeSpan.FromSeconds(10)
+        //};
 
-        // 3) only handle 429 and 5xx status codes (and non-cancellation exceptions)
-        options.Retry.ShouldHandle = args =>
-        {
-            var outcome = args.Outcome;
+        options.Retry.MaxRetryAttempts = 4;
+        options.Retry.Delay = TimeSpan.FromSeconds(5);
 
-            if (outcome.Result is HttpResponseMessage resp)
-            {
-                var code = resp.StatusCode;
-                return ValueTask.FromResult(code == HttpStatusCode.TooManyRequests || (int)code >= 500);
-            }
-
-            if (outcome.Exception is not null)
-            {
-                // retry for exceptions except cancellation
-                return ValueTask.FromResult(!(outcome.Exception is OperationCanceledException));
-            }
-
-            return ValueTask.FromResult(false);
-        };
-
-        // 4) get an ILogger from the IServiceProvider and log on retry
         var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("HttpRetry");
         options.Retry.OnRetry = args =>
         {
@@ -76,8 +77,6 @@ services.AddHttpClient("Finnhub", client =>
         };
     });
 
-
-// Register application services
 services.AddSingleton<ITickerProvider, TickerProvider>();
 services.AddSingleton<IAnalysisFetcher, AnalysisFetcher>();
 services.AddSingleton<IFileStorage, FileStorage>();

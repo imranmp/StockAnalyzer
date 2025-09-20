@@ -1,5 +1,4 @@
 using CsvHelper;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using StockAnalyzer.Services.Interfaces;
 
@@ -10,31 +9,21 @@ public class App
     private readonly ITickerProvider _tickerProvider;
     private readonly IAnalysisFetcher _analysisFetcher;
     private readonly IFileStorage _fileStorage;
-    private readonly IConfiguration _configuration;
     private readonly ILogger<App> _logger;
 
     public App(ITickerProvider tickerProvider,
                IAnalysisFetcher analysisFetcher,
                IFileStorage fileStorage,
-               IConfiguration configuration,
                ILogger<App> logger)
     {
         _tickerProvider = tickerProvider;
         _analysisFetcher = analysisFetcher;
         _fileStorage = fileStorage;
-        _configuration = configuration;
         _logger = logger;
     }
 
     public async Task RunAsync()
     {
-        string? finnhubToken = _configuration["FinnhubToken"];
-        if (string.IsNullOrWhiteSpace(finnhubToken))
-        {
-            _logger.LogError("FinnhubToken is not configured. Set the FinnhubToken in appsettings or user secrets.");
-            return;
-        }
-
         List<(string ticker, string companyName)> tickers = await _tickerProvider.GetTickersAsync();
         if (tickers.Count == 0)
         {
@@ -47,7 +36,7 @@ public class App
         foreach (var (ticker, companyName) in tickers)
         {
             _logger.LogInformation("Processing {Ticker}", ticker);
-            var results = await _analysisFetcher.FetchAnalysisAsync(ticker, finnhubToken!);
+            var results = await _analysisFetcher.FetchAnalysisAsync(ticker);
             if (results != null && results.Count != 0)
             {
                 foreach (var entry in results)
@@ -69,8 +58,10 @@ public class App
 
         analyses = [.. analyses.OrderBy(a => a.Symbol).ThenByDescending(a => a.Period)];
 
+        //Save analysis to JSON file
         await _fileStorage.SaveAnalysisAsync(analyses);
 
+        //Export analysis to CSV file
         using var csvStream = _fileStorage.OpenWriteStream("AnalysisResult.csv");
         var config = new CsvHelper.Configuration.CsvConfiguration(System.Globalization.CultureInfo.InvariantCulture)
         {

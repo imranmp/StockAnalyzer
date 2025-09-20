@@ -7,6 +7,7 @@ namespace StockAnalyzer.Services;
 
 public class FileStorage : IFileStorage
 {
+    //TODO: analysis file name/path should come as an argument during execution
     private const string AnalysisFile = "AnalysisResult.json";
 
     private readonly ILogger<FileStorage> _logger;
@@ -23,7 +24,7 @@ public class FileStorage : IFileStorage
         };
     }
 
-    public async Task<List<Analysis>> LoadAnalysisAsync()
+    public async Task<List<Analysis>> LoadAnalysisAsync(CancellationToken cancellationToken = default)
     {
         if (!File.Exists(AnalysisFile))
         {
@@ -32,7 +33,7 @@ public class FileStorage : IFileStorage
 
         try
         {
-            var json = await File.ReadAllTextAsync(AnalysisFile);
+            var json = await File.ReadAllTextAsync(AnalysisFile, cancellationToken);
             if (string.IsNullOrWhiteSpace(json))
             {
                 return [];
@@ -44,16 +45,16 @@ public class FileStorage : IFileStorage
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to load existing analysis file");
-            return new List<Analysis>();
+            return [];
         }
     }
 
-    public async Task SaveAnalysisAsync(List<Analysis> analyses)
+    public async Task SaveAnalysisAsync(List<Analysis> analyses, CancellationToken cancellationToken = default)
     {
         try
         {
             var json = JsonSerializer.Serialize(analyses, options);
-            await File.WriteAllTextAsync(AnalysisFile, json);
+            await File.WriteAllTextAsync(AnalysisFile, json, cancellationToken);
         }
         catch (Exception ex)
         {

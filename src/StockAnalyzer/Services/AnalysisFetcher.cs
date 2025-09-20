@@ -24,28 +24,25 @@ public class AnalysisFetcher : IAnalysisFetcher
 
     }
 
-    public async Task<List<Analysis>?> FetchAnalysisAsync(string ticker, string finnhubToken)
+    public async Task<List<Analysis>?> FetchAnalysisAsync(string ticker, CancellationToken cancellationToken = default)
     {
         // Use named client configured with resilience pipeline
         var client = _httpClientFactory.CreateClient("Finnhub");
 
-        // Add token header for this request
-        client.DefaultRequestHeaders.Remove("X-Finnhub-Token");
-        client.DefaultRequestHeaders.Add("X-Finnhub-Token", finnhubToken);
-
         try
         {
             // request path relative to BaseAddress
-            var response = await client.GetAsync($"api/v1/stock/recommendation?symbol={ticker}");
+            var response = await client.GetAsync($"api/v1/stock/recommendation?symbol={ticker}", cancellationToken);
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogError("Failed to fetch analysis for {Ticker}: {Status} - {Body}", ticker, response.StatusCode, await response.Content.ReadAsStringAsync());
+                _logger.LogError("Failed to fetch analysis for {Ticker}: {Status} - {Body}",
+                    ticker, response.StatusCode, body);
                 return null;
             }
 
-            var body = await response.Content.ReadAsStringAsync();
-            var results = JsonSerializer.Deserialize<List<Analysis>>(body, serializerOptions);
-            return results;
+            return JsonSerializer.Deserialize<List<Analysis>>(body, serializerOptions);
         }
         catch (Exception ex)
         {

@@ -4,9 +4,10 @@ namespace StockAnalyzer.Services;
 
 public class TickerProvider : ITickerProvider
 {
+    //TODO: ticker file name/path should come as an argument during execution
     private const string TickersFile = "Tickers.txt";
 
-    public async Task<List<(string ticker, string companyName)>> GetTickersAsync()
+    public async Task<List<(string ticker, string companyName)>> GetTickersAsync(CancellationToken cancellationToken = default)
     {
         if (!File.Exists(TickersFile))
         {
@@ -16,6 +17,8 @@ public class TickerProvider : ITickerProvider
         var lines = await File.ReadAllLinesAsync(TickersFile);
         var tickers = new List<(string ticker, string companyName)>();
 
+        //TODO: limit lines to 200 to avoid too many requests in a short time
+        //TODO: allow lines to be comma or tab separated
         foreach (var line in lines.Where(l => !string.IsNullOrWhiteSpace(l)))
         {
             var parts = line.Split('\t');
