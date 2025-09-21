@@ -6,7 +6,7 @@ public interface IFileStorage
 {
     Task<List<Analysis>> LoadAnalysisAsync(CancellationToken cancellationToken = default);
 
-    Task SaveAnalysisAsync(List<Analysis> analyses, CancellationToken cancellationToken = default);
+    Task<List<Analysis>> SaveAnalysisAsync(List<(string ticker, string companyName)> tickers, List<Analysis> analyses, CancellationToken cancellationToken = default);
 
-    Stream OpenWriteStream(string relativePath);
+    void OpenWriteStream(string relativePath, List<Analysis> analyses);
 }

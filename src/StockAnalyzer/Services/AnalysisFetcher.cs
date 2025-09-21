@@ -21,7 +21,6 @@ public class AnalysisFetcher : IAnalysisFetcher
             Converters = { new Converters.DecimalConverter(), new Converters.DoubleConverter() },
             PropertyNameCaseInsensitive = true
         };
-
     }
 
     public async Task<List<Analysis>?> FetchAnalysisAsync(string ticker, CancellationToken cancellationToken = default)

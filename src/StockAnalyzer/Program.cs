@@ -66,12 +66,21 @@ static void ConfigureHttpClient(IServiceCollection services, string finnhubToken
         client.BaseAddress = new Uri("https://finnhub.io/");
         client.DefaultRequestHeaders.Remove("X-Finnhub-Token");
         client.DefaultRequestHeaders.Add("X-Finnhub-Token", finnhubToken);
+
+        client.Timeout = TimeSpan.FromSeconds(30);
     })
     .AddStandardResilienceHandler()
     .Configure((HttpStandardResilienceOptions options, IServiceProvider sp) =>
     {
-        options.Retry.MaxRetryAttempts = 4;
-        options.Retry.Delay = TimeSpan.FromSeconds(5);
+        options.TotalRequestTimeout = new HttpTimeoutStrategyOptions
+        {
+            Timeout = TimeSpan.FromSeconds(120)
+        };
+
+        options.Retry.MaxRetryAttempts = 5;
+        options.Retry.Delay = TimeSpan.FromSeconds(4);
+        options.Retry.UseJitter = true;
+        options.Retry.BackoffType = Polly.DelayBackoffType.Exponential;
 
         var logger = sp.GetRequiredService<ILoggerFactory>().CreateLogger("HttpRetry");
         options.Retry.OnRetry = args =>
@@ -104,8 +113,12 @@ static void RegisterServices(IServiceCollection services, string tickersFile, st
 {
     // Register file- and domain-related services in one place for clarity
     services.AddSingleton<ITickerProvider>(sp => new TickerProvider(tickersFile));
+
     services.AddSingleton<IAnalysisFetcher, AnalysisFetcher>();
-    services.AddSingleton<IFileStorage>(sp => new FileStorage(sp.GetRequiredService<ILogger<FileStorage>>(), analysisFile));
+
+    services.AddSingleton<IFileStorage>(sp => new FileStorage(sp.GetRequiredService<ILogger<FileStorage>>(),
+        sp.GetRequiredService<IAnalysisFetcher>(), analysisFile));
+
     services.AddTransient<App>();
 }
 
