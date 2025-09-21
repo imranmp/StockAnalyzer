@@ -7,15 +7,17 @@ namespace StockAnalyzer.Services;
 
 public class FileStorage : IFileStorage
 {
-    //TODO: analysis file name/path should come as an argument during execution
-    private const string AnalysisFile = "AnalysisResult.json";
+    // analysis file name/path can be provided during construction (e.g. from args or DI)
+    private const string DefaultAnalysisFile = "AnalysisResult.json";
+    private readonly string _analysisFile;
 
     private readonly ILogger<FileStorage> _logger;
     private readonly JsonSerializerOptions options;
 
-    public FileStorage(ILogger<FileStorage> logger)
+    public FileStorage(ILogger<FileStorage> logger, string? analysisFile = null)
     {
         _logger = logger;
+        _analysisFile = string.IsNullOrWhiteSpace(analysisFile) ? DefaultAnalysisFile : analysisFile;
 
         options = new()
         {
@@ -26,14 +28,14 @@ public class FileStorage : IFileStorage
 
     public async Task<List<Analysis>> LoadAnalysisAsync(CancellationToken cancellationToken = default)
     {
-        if (!File.Exists(AnalysisFile))
+        if (!File.Exists(_analysisFile))
         {
             return [];
         }
 
         try
         {
-            var json = await File.ReadAllTextAsync(AnalysisFile, cancellationToken);
+            var json = await File.ReadAllTextAsync(_analysisFile, cancellationToken);
             if (string.IsNullOrWhiteSpace(json))
             {
                 return [];
@@ -54,7 +56,7 @@ public class FileStorage : IFileStorage
         try
         {
             var json = JsonSerializer.Serialize(analyses, options);
-            await File.WriteAllTextAsync(AnalysisFile, json, cancellationToken);
+            await File.WriteAllTextAsync(_analysisFile, json, cancellationToken);
         }
         catch (Exception ex)
         {

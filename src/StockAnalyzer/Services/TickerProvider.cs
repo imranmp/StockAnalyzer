@@ -2,36 +2,50 @@ using StockAnalyzer.Services.Interfaces;
 
 namespace StockAnalyzer.Services;
 
-public class TickerProvider : ITickerProvider
+public class TickerProvider(string? tickersFile = null) : ITickerProvider
 {
-    //TODO: ticker file name/path should come as an argument during execution
-    private const string TickersFile = "Tickers.txt";
+    // ticker file name/path can be provided during construction (e.g. from args or DI)
+    private const string DefaultTickersFile = "Tickers.txt";
+    private readonly string _tickersFile = string.IsNullOrWhiteSpace(tickersFile) ? DefaultTickersFile : tickersFile;
 
     public async Task<List<(string ticker, string companyName)>> GetTickersAsync(CancellationToken cancellationToken = default)
     {
-        if (!File.Exists(TickersFile))
+        if (!File.Exists(_tickersFile))
         {
             return [];
         }
 
-        var lines = await File.ReadAllLinesAsync(TickersFile);
-        var tickers = new List<(string ticker, string companyName)>();
+        const int maxLines = 200;
 
-        //TODO: limit lines to 200 to avoid too many requests in a short time
-        //TODO: allow lines to be comma or tab separated
-        foreach (var line in lines.Where(l => !string.IsNullOrWhiteSpace(l)))
+        var lines = await File.ReadAllLinesAsync(_tickersFile, cancellationToken);
+        var nonEmptyLines = lines.Where(l => !string.IsNullOrWhiteSpace(l)).ToList();
+
+        if (nonEmptyLines.Count > maxLines)
         {
-            var parts = line.Split('\t');
-            if (parts.Length >= 2)
-            {
-                tickers.Add((parts[0], parts[1]));
-            }
-            else if (parts.Length == 1)
-            {
-                tickers.Add((parts[0], string.Empty));
-            }
+            throw new InvalidOperationException($"Tickers file '{_tickersFile}' contains {nonEmptyLines.Count} entries which exceeds the maximum allowed of {maxLines}.");
         }
 
-        return [.. tickers.DistinctBy(x => x.ticker).OrderBy(x => x.ticker)];
+        var tickers = new List<(string ticker, string companyName)>();
+
+        foreach (var line in nonEmptyLines)
+        {
+            var trimmed = line.Trim();
+
+            // Split on first tab or comma only
+            var parts = trimmed.Split(['\t', ','], 2);
+            var ticker = parts[0].Trim();
+            if (string.IsNullOrEmpty(ticker))
+            {
+                continue;
+            }
+
+            var company = parts.Length > 1 ? parts[1].Trim() : string.Empty;
+            tickers.Add((ticker, company));
+        }
+
+        return tickers
+            .DistinctBy(x => x.ticker)
+            .OrderBy(x => x.ticker)
+            .ToList();
     }
 }
