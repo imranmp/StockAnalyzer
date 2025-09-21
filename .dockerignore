@@ -1,0 +1,41 @@
+**/.classpath
+**/.dockerignore
+**/.env
+**/.git
+**/.gitignore
+**/.project
+**/.settings
+**/.toolstarget
+**/.vs
+**/.vscode
+**/bin
+**/obj
+**/.idea
+**/*.user
+**/*.suo
+**/*.userosscache
+**/*.sln.docstates
+
+# build output
+artifacts/
+**/bin/
+**/obj/
+**/out/
+
+# local files
+*.mdf
+*.ldf
+*.log
+*.db
+*.sqlite
+
+# node/yarn
+node_modules/
+
+# dotenv
+.env
+.env.*
+secrets*
+
+# docker
+Dockerfile.*
