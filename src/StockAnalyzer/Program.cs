@@ -74,11 +74,11 @@ static void ConfigureHttpClient(IServiceCollection services, string finnhubToken
     {
         options.TotalRequestTimeout = new HttpTimeoutStrategyOptions
         {
-            Timeout = TimeSpan.FromSeconds(120)
+            Timeout = TimeSpan.FromSeconds(180)
         };
 
         options.Retry.MaxRetryAttempts = 5;
-        options.Retry.Delay = TimeSpan.FromSeconds(4);
+        options.Retry.Delay = TimeSpan.FromSeconds(5);
         options.Retry.UseJitter = true;
         options.Retry.BackoffType = Polly.DelayBackoffType.Exponential;
 
